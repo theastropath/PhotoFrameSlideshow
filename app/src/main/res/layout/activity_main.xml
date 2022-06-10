@@ -25,5 +25,6 @@
         app:srcCompat="@color/purple_200"
         tools:srcCompat="@tools:sample/backgrounds/scenic[1]"
         tools:visibility="visible" />
-
+    
 </androidx.constraintlayout.widget.ConstraintLayout>
+
