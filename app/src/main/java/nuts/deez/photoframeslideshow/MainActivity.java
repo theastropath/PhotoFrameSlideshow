@@ -2,13 +2,17 @@ package nuts.deez.photoframeslideshow;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.icu.text.SimpleDateFormat;
 import androidx.exifinterface.media.ExifInterface;
+
+import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -16,6 +20,8 @@ import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import androidx.core.app.ActivityCompat;
 import androidx.appcompat.app.AppCompatActivity;
+
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
@@ -159,6 +165,7 @@ public class MainActivity extends AppCompatActivity {
 
         updateFlagsAndStuff();
 
+        //Get storage permissions
         int permission = ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE);
         if (permission != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(
@@ -166,6 +173,19 @@ public class MainActivity extends AppCompatActivity {
                     PERMISSIONS_STORAGE,
                     REQUEST_EXTERNAL_STORAGE);
         }
+
+        //Ask to disable battery optimizations
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Intent intent = new Intent();
+            String packageName = getPackageName();
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                intent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                intent.setData(Uri.parse("package:" + packageName));
+                startActivity(intent);
+            }
+        }
+
 
         allowedFileExtensions.add(".png");
         allowedFileExtensions.add(".jpg");
@@ -203,6 +223,8 @@ public class MainActivity extends AppCompatActivity {
 
         updateNtpHandler = new Handler();
         updateNtpHandler.post(updateNtpRunnable);
+
+        turnScreenOn();
 
 
     }
@@ -542,6 +564,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @SuppressLint("WakelockTimeout")
+    void turnScreenOn(){
+        //SCREEN_BRIGHT_WAKE_LOCK is needed to actually turn the screen on
+        //(Maybe there's something better that isn't deprecated?)
+        @SuppressLint("InvalidWakeLockTag")
+        WakeLock screenLock = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "TAG");
+        screenLock.acquire();
+        Log.i(TAG, "Should have just made screen wake up");
+        screenLock.release();
+
+    }
+
     void updateFlagsAndStuff() {
         Window window = getWindow();
         Calendar cal = Calendar.getInstance();
@@ -555,16 +589,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.i(TAG, "Current hour is inside active hours - " + curHour);
                 if (!active) {
                     //Toast.makeText(getApplicationContext(), "Active Hours have begun", Toast.LENGTH_SHORT).show();
-
-
-                    //SCREEN_BRIGHT_WAKE_LOCK is needed to actually turn the screen on
-                    //(Maybe there's something better that isn't deprecated?)
-                    @SuppressLint("InvalidWakeLockTag")
-                    WakeLock screenLock = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(
-                            PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "TAG");
-                    screenLock.acquire();
-                    Log.i(TAG, "Should have just made screen wake up");
-                    screenLock.release();
+                    turnScreenOn();
                 }
                 active = true;
             } else {
