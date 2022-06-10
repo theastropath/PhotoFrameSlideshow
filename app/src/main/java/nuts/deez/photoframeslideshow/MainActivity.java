@@ -751,7 +751,7 @@ public class MainActivity extends AppCompatActivity {
             SntpClient client = new SntpClient();
             long nowAsPerDeviceTimeZone;
 
-            if (ntpServer.equals("")){
+            if (ntpServer.equals("") || !forceClockSync){
                 return null;
             }
 
@@ -776,7 +776,7 @@ public class MainActivity extends AppCompatActivity {
 
                 }
             } else {
-                if (!ntpServer.equals("")) {
+                if (!ntpServer.equals("") && forceClockSync) {
                     Log.e(TAG, "Failed to get a time from NTP");
                 }
             }
