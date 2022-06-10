@@ -212,6 +212,7 @@ public class MainActivity extends AppCompatActivity {
             if (pause){
                 updateImage(); //Since we won't get called by the periodic timer, manually call here to draw the image
             }
+            showPauseIcon(pause);
         }
 
         updateImageHandler = new Handler();
@@ -252,8 +253,21 @@ public class MainActivity extends AppCompatActivity {
         outState.putBoolean("active",active);
     }
 
+    void showPauseIcon(boolean show){
+        ImageView pauseIcon = findViewById(R.id.pauseIcon);
+        if (show){
+            pauseIcon.setVisibility(View.VISIBLE);
+        } else {
+            pauseIcon.setVisibility(View.INVISIBLE);
+        }
+
+    }
+
     void pauseUnpauseImages(){
+
         pause = !pause;
+
+        showPauseIcon(pause);
 
         if (pause){
             Toast.makeText(getApplicationContext(), "Paused", Toast.LENGTH_SHORT).show();

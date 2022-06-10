@@ -27,5 +27,16 @@
         tools:srcCompat="@tools:sample/backgrounds/scenic[1]"
         tools:visibility="visible" />
 
+    <ImageView
+        android:id="@+id/pauseIcon"
+        android:layout_width="102dp"
+        android:layout_height="94dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="16dp"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:srcCompat="@drawable/pause_circle" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
 
