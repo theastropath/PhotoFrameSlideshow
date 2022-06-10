@@ -7,15 +7,15 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.icu.text.SimpleDateFormat;
-import android.media.ExifInterface;
+import androidx.exifinterface.media.ExifInterface;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
-import android.support.v4.app.ActivityCompat;
-import android.support.v7.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.appcompat.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
@@ -41,14 +41,12 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-
 
 public class MainActivity extends AppCompatActivity {
 
     ImageView image;
     Bitmap lastBitmap = null;
+    WakeLock keepAlive = null;
 
     private static final String TAG = "PhotoFrameSlideshow";
 
@@ -77,7 +75,6 @@ public class MainActivity extends AppCompatActivity {
 
     Handler updateImageHandler;
     Handler updateNtpHandler;
-    private Executor executor;
     boolean hideUi = true;
     boolean pause = false;
     int imageIndex = -1;
@@ -105,13 +102,17 @@ public class MainActivity extends AppCompatActivity {
     };
 
 
-    @SuppressLint("ClickableViewAccessibility")
+    @SuppressLint({"ClickableViewAccessibility", "WakelockTimeout"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        image = (ImageView) findViewById(R.id.imageView);
+        //Wakelock used to keep time updates and everything going overnight
+        keepAlive = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "KeepAlive WakeLock:");
+        keepAlive.acquire();
+
+        image = findViewById(R.id.imageView);
         image.setOnTouchListener(new OnSwipeTouchListener(getApplicationContext()){
             @Override
             public void onSwipeLeft() {
@@ -157,8 +158,6 @@ public class MainActivity extends AppCompatActivity {
         });
 
         updateFlagsAndStuff();
-
-        executor = Executors.newSingleThreadExecutor();
 
         int permission = ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE);
         if (permission != PackageManager.PERMISSION_GRANTED) {
@@ -218,11 +217,13 @@ public class MainActivity extends AppCompatActivity {
         lastBitmap = null;
         updateImageHandler.removeCallbacks(updateImageRunnable);
         updateNtpHandler.removeCallbacks(updateNtpRunnable);
+        keepAlive.release();
 
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState){
+        super.onSaveInstanceState(outState);
         outState.putInt("imageIndex",imageIndex);
         outState.putStringArrayList("picturesRemaining",(ArrayList<String>)picturesRemaining);
         outState.putBoolean("pause",pause);
@@ -370,7 +371,7 @@ public class MainActivity extends AppCompatActivity {
 
         boolean fileTypeMatch = false;
 
-        for (int i = 0; i < allowedFileExtensions.size() && fileTypeMatch == false; i++) {
+        for (int i = 0; i < allowedFileExtensions.size() && !fileTypeMatch; i++) {
             if (filename.toLowerCase().endsWith(allowedFileExtensions.get(i))) {
                 fileTypeMatch = true;
             }
@@ -540,6 +541,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    @SuppressLint("WakelockTimeout")
     void updateFlagsAndStuff() {
         Window window = getWindow();
         Calendar cal = Calendar.getInstance();
@@ -551,9 +553,12 @@ public class MainActivity extends AppCompatActivity {
             if (curHour >= activeHourStart && curHour < activeHourEnd) {
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
                 Log.i(TAG, "Current hour is inside active hours - " + curHour);
-                if (active == false) {
+                if (!active) {
                     //Toast.makeText(getApplicationContext(), "Active Hours have begun", Toast.LENGTH_SHORT).show();
 
+
+                    //SCREEN_BRIGHT_WAKE_LOCK is needed to actually turn the screen on
+                    //(Maybe there's something better that isn't deprecated?)
                     @SuppressLint("InvalidWakeLockTag")
                     WakeLock screenLock = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(
                             PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "TAG");
@@ -603,12 +608,9 @@ public class MainActivity extends AppCompatActivity {
             o.inJustDecodeBounds = true;
             BitmapFactory.decodeStream(new FileInputStream(f), null, o);
 
-            //The new size we want to scale to
-            final int REQUIRED_WIDTH = WIDTH;
-            final int REQUIRED_HEIGHT = HEIGHT;
             //Find the correct scale value. It should be the power of 2.
             int scale = 1;
-            while (o.outWidth / scale / 2 >= REQUIRED_WIDTH && o.outHeight / scale / 2 >= REQUIRED_HEIGHT)
+            while (o.outWidth / scale / 2 >= WIDTH && o.outHeight / scale / 2 >= HEIGHT)
                 scale *= 2;
 
             Log.i(TAG, "Image scaling factor was " + scale);
@@ -618,6 +620,7 @@ public class MainActivity extends AppCompatActivity {
             o2.inSampleSize = scale;
             return BitmapFactory.decodeStream(new FileInputStream(f), null, o2);
         } catch (FileNotFoundException e) {
+            e.printStackTrace();
         }
         return null;
     }
@@ -626,68 +629,12 @@ public class MainActivity extends AppCompatActivity {
         new ShowImageBackground().execute(imageName);
     }
 
-    //Use the Async version above instead!
-    void showPicture(String imageName) {
-        image = (ImageView) findViewById(R.id.imageView);
-        File imageFile = new File(imageName);
-
-        if (!imageFile.exists()) {
-            Log.i(TAG, imageName + " does not exist?");
-            return;
-        }
-
-        try {
-            ExifInterface ei = new ExifInterface(imageName);
-            //Bitmap bmImg = BitmapFactory.decodeFile(imageFolder + imageName);
-            Bitmap bmImg = decodeFile(imageFile, frameWidth, frameHeight);
-            if (bmImg == null) {
-                Toast.makeText(getApplicationContext(), "Loaded null...", Toast.LENGTH_LONG).show();
-            }
-
-            int orientation = ei.getAttributeInt(ExifInterface.TAG_ORIENTATION,
-                    ExifInterface.ORIENTATION_UNDEFINED);
-
-            switch (orientation) {
-
-                case ExifInterface.ORIENTATION_ROTATE_90:
-                    bmImg = rotateImage(bmImg, 90);
-                    Log.i(TAG, "Rotated 90...");
-                    break;
-
-                case ExifInterface.ORIENTATION_ROTATE_180:
-                    bmImg = rotateImage(bmImg, 180);
-                    Log.i(TAG, "Rotated 180...");
-                    break;
-
-                case ExifInterface.ORIENTATION_ROTATE_270:
-                    bmImg = rotateImage(bmImg, 270);
-                    Log.i(TAG, "Rotated 270...");
-                    break;
-
-                case ExifInterface.ORIENTATION_NORMAL:
-                default:
-                    Log.i(TAG, "No rotate...");
-                    break;
-            }
-
-            if (bmImg == null) {
-                Log.e(TAG, "Became null after rotation...");
-            } else {
-                image.setImageBitmap(bmImg);
-                if (lastBitmap != null) {
-                    lastBitmap.recycle();
-                }
-                lastBitmap = bmImg;
-            }
-            //Toast.makeText(getApplicationContext(),imageName,Toast.LENGTH_LONG).show();
-        } catch (Exception e) {
-            Log.e(TAG, "Failed somehow!");
-            e.printStackTrace();
-        }
-    }
-
+    @SuppressLint({"NewApi", "SimpleDateFormat"})
     private void setSystemClock(Date date){
-        SimpleDateFormat dateFormat = new SimpleDateFormat("MMddHHmmyy.ss");
+        SimpleDateFormat dateFormat;
+        //Android Studio claims this needs API Level 24, but nothing here requires more than API
+        //Level 1, as far as I can see???  Works just fine on my API Level 23 device...
+        dateFormat = new SimpleDateFormat("MMddHHmmyy.ss");
 
         try {
             Process process = Runtime.getRuntime().exec("su");
@@ -701,20 +648,17 @@ public class MainActivity extends AppCompatActivity {
             os.flush();
             process.waitFor();
             Log.i(TAG,"System time synced to NTP");
-        } catch (InterruptedException e) {
-            Toast.makeText(getApplicationContext(), e.toString(), Toast.LENGTH_SHORT).show();
-            Log.e(TAG,e.toString());
-        } catch (IOException e) {
+        } catch (Exception e) {
             Toast.makeText(getApplicationContext(), e.toString(), Toast.LENGTH_SHORT).show();
             Log.e(TAG,e.toString());
         }
 
     }
 
-    private class ShowImageBackground extends AsyncTask<String,Integer,Bitmap> {
+    private  class ShowImageBackground extends AsyncTask<String,Integer,Bitmap> {
         @Override
         protected Bitmap doInBackground(String... params) {
-            image = (ImageView) findViewById(R.id.imageView);
+            image = findViewById(R.id.imageView);
             String imageName = params[0];
             File imageFile = new File(imageName);
 
@@ -780,9 +724,9 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected Date doInBackground(String... params) {
             SntpClient client = new SntpClient();
-            long nowAsPerDeviceTimeZone = 0;
+            long nowAsPerDeviceTimeZone;
 
-            if (ntpServer==""){
+            if (ntpServer.equals("")){
                 return null;
             }
 
@@ -807,7 +751,7 @@ public class MainActivity extends AppCompatActivity {
 
                 }
             } else {
-                if (ntpServer!="") {
+                if (!ntpServer.equals("")) {
                     Log.e(TAG, "Failed to get a time from NTP");
                 }
             }
