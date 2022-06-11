@@ -65,7 +65,7 @@ The app will pull images from the /Pictures/ folder on internal storage and disp
 - List of strings (Filetypes, including the leading .)
 
 ### subdirectories
-- A list of subdirectoris within the /Pictures/ folder that can be enabled or disabled via config (Perhaps for seasonal images, etc)
+- A list of subdirectories within the /Pictures/ folder that can be enabled or disabled via config (Perhaps for seasonal images, etc)
 - Each subdirectory entry includes two fields
   - **folder**
     - The folder name (without a leading or trailing slash)
