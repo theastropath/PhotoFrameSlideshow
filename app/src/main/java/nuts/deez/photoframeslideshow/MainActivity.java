@@ -484,9 +484,20 @@ public class MainActivity extends AppCompatActivity {
                 showPictureAsync(nextPic);
 
             } else {
+                showNoPicturesIcon();
                 Toast.makeText(getApplicationContext(), "No Pictures Found!", Toast.LENGTH_SHORT).show();
             }
         }
+    }
+
+    void showNoPicturesIcon(){
+        image = findViewById(R.id.imageView);
+        image.setImageResource(R.drawable.no_images);
+    }
+
+    void showBrokenImageIcon(){
+        image = findViewById(R.id.imageView);
+        image.setImageResource(R.drawable.broken_image);
     }
 
     void goToPreviousImage(){
@@ -703,6 +714,7 @@ public class MainActivity extends AppCompatActivity {
 
             if (!imageFile.exists()) {
                 Log.i(TAG, imageName + " does not exist?");
+                showBrokenImageIcon();
                 return null;
             }
 
@@ -712,6 +724,8 @@ public class MainActivity extends AppCompatActivity {
                 Bitmap bmImg = decodeFile(imageFile, frameWidth, frameHeight);
                 if (bmImg == null) {
                     Toast.makeText(getApplicationContext(), "Loaded null...", Toast.LENGTH_LONG).show();
+                    showBrokenImageIcon();
+                    return null;
                 }
 
                 int orientation = ei.getAttributeInt(ExifInterface.TAG_ORIENTATION,
