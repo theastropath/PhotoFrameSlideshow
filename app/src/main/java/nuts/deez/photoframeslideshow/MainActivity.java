@@ -708,23 +708,21 @@ public class MainActivity extends AppCompatActivity {
     private  class ShowImageBackground extends AsyncTask<String,Integer,Bitmap> {
         @Override
         protected Bitmap doInBackground(String... params) {
-            image = findViewById(R.id.imageView);
-            String imageName = params[0];
-            File imageFile = new File(imageName);
-
-            if (!imageFile.exists()) {
-                Log.i(TAG, imageName + " does not exist?");
-                showBrokenImageIcon();
-                return null;
-            }
-
             try {
+                image = findViewById(R.id.imageView);
+               String imageName = params[0];
+                File imageFile = new File(imageName);
+
+                if (!imageFile.exists()) {
+                    Log.i(TAG, imageName + " does not exist?");
+                    return null;
+                }
+
                 ExifInterface ei = new ExifInterface(imageName);
                 //Bitmap bmImg = BitmapFactory.decodeFile(imageFolder + imageName);
                 Bitmap bmImg = decodeFile(imageFile, frameWidth, frameHeight);
                 if (bmImg == null) {
                     Toast.makeText(getApplicationContext(), "Loaded null...", Toast.LENGTH_LONG).show();
-                    showBrokenImageIcon();
                     return null;
                 }
 
@@ -759,13 +757,18 @@ public class MainActivity extends AppCompatActivity {
             } catch (Exception e) {
                 Log.e(TAG, "Failed somehow!");
                 e.printStackTrace();
+
                 return null;
             }
         }
 
         @Override
         protected void onPostExecute(Bitmap result) {
-            image.setImageBitmap(result);
+            if (result!=null) {
+                image.setImageBitmap(result);
+            } else {
+                showBrokenImageIcon();
+            }
             if (lastBitmap != null) {
                 lastBitmap.recycle();
             }
