@@ -108,7 +108,7 @@ public class MainActivity extends AppCompatActivity {
     };
 
 
-    @SuppressLint({"ClickableViewAccessibility", "WakelockTimeout"})
+    @SuppressLint({"ClickableViewAccessibility", "WakelockTimeout", "BatteryLife", "ObsoleteSdkInt"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -479,7 +479,7 @@ public class MainActivity extends AppCompatActivity {
             if (imageIndex < picturesRemaining.size()) {
                 String nextPic = picturesRemaining.get(imageIndex);
                 if (showFileNames) {
-                    Toast.makeText(getApplicationContext(), nextPic, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getApplicationContext(), nextPic, Toast.LENGTH_LONG).show();
                 }
                 showPictureAsync(nextPic);
 
@@ -498,6 +498,10 @@ public class MainActivity extends AppCompatActivity {
     void showBrokenImageIcon(){
         image = findViewById(R.id.imageView);
         image.setImageResource(R.drawable.broken_image);
+
+        imageIndex=picturesRemaining.size(); //This will cause the app to reload the image list next update
+        updateImage(); //And look at that, we're updating!
+
     }
 
     void goToPreviousImage(){
@@ -588,6 +592,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    @SuppressWarnings("deprecation")
     @SuppressLint("WakelockTimeout")
     void turnScreenOn(){
         //SCREEN_BRIGHT_WAKE_LOCK is needed to actually turn the screen on
@@ -605,7 +610,7 @@ public class MainActivity extends AppCompatActivity {
         Window window = getWindow();
         Calendar cal = Calendar.getInstance();
         Date curTime = cal.getTime();
-        int curHour = curTime.getHours();
+        @SuppressWarnings("deprecation") int curHour = curTime.getHours();
 
         if (window != null) {
             //Check if screen should still be on
@@ -705,7 +710,9 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private  class ShowImageBackground extends AsyncTask<String,Integer,Bitmap> {
+    @SuppressWarnings("deprecation")
+    @SuppressLint("StaticFieldLeak")
+    private class ShowImageBackground extends AsyncTask<String,Integer,Bitmap> {
         @Override
         protected Bitmap doInBackground(String... params) {
             try {
@@ -764,6 +771,8 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected void onPostExecute(Bitmap result) {
+            //Image should be set still, but just to be safe
+            image = findViewById(R.id.imageView);
             if (result!=null) {
                 image.setImageBitmap(result);
             } else {
@@ -776,6 +785,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @SuppressWarnings("deprecation")
+    @SuppressLint("StaticFieldLeak")
     private class GetNTPTimeBackground extends AsyncTask<String,Integer,Date> {
         @Override
         protected Date doInBackground(String... params) {
